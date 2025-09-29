@@ -265,17 +265,33 @@ export default function ChartsScreen({ onBack, onTransactions, onLogout }) {
   const { totalSpent, listData, chartData, colorScale } = useMemo(() => {
     const total = categories.reduce((s, c) => s + (c.spent || 0), 0);
 
+    // Hardcoded vibrant colors that will definitely work
+    const VIBRANT_COLORS = [
+      '#FF6B6B', // Red
+      '#FFB366', // Orange
+      '#FFE066', // Yellow
+      '#66D9B3', // Teal
+      '#66B3FF', // Blue
+      '#A78BFA', // Purple
+      '#FF6BD9', // Pink
+      '#6BFFD9', // Cyan
+      '#D966FF', // Magenta
+      '#FFD966', // Gold
+      '#66FFB3', // Mint
+      '#FF66B3', // Rose
+    ];
+
     const withPct = categories
       .filter(c => (c.spent || 0) > 0)
       .map((c, idx) => {
-        const color = normalizeColor(c.color, idx);
+        // Use hardcoded colors instead of database colors
+        const color = VIBRANT_COLORS[idx % VIBRANT_COLORS.length];
         return { ...c, color, percent: total === 0 ? 0 : ((c.spent || 0) / total) * 100 };
       })
       .sort((a, b) => b.percent - a.percent);
 
-    const scale = withPct.length
-      ? withPct.map(d => d.color)
-      : FALLBACK_PALETTE.slice(0, Math.max(1, categories.length));
+    // Build color array in the SAME order as withPct
+    const scale = withPct.map(d => d.color);
 
     return {
       totalSpent: total,
@@ -286,7 +302,7 @@ export default function ChartsScreen({ onBack, onTransactions, onLogout }) {
         percent: c.percent,
         emoji: c.icon,
       })),
-      colorScale: scale,
+      colorScale: scale.length > 0 ? scale : VIBRANT_COLORS,
     };
   }, [categories]);
 
@@ -327,14 +343,11 @@ export default function ChartsScreen({ onBack, onTransactions, onLogout }) {
             padAngle={2}
             innerRadius={0}
             labels={({ datum }) =>
-              `${datum.x}\n${datum.percent.toFixed(1)} %`
+              `${datum.emoji || ''} ${datum.x}\n${datum.percent.toFixed(1)} %`
             }
             labelRadius={({ radius }) => radius + 22}
             style={{
               data: {
-                // FORCE the color for each slice
-                fill: ({ index }) =>
-                  colorScale[index % colorScale.length] || '#999999',
                 stroke: '#FFFFFF',
                 strokeWidth: 1,
               },
@@ -350,7 +363,7 @@ export default function ChartsScreen({ onBack, onTransactions, onLogout }) {
         keyExtractor={item => item.id?.toString() ?? item.name}
         contentContainerStyle={styles.listContainer}
         renderItem={({ item, index }) => {
-          const color = normalizeColor(item.color, index);
+          const color = item.color;
           const bg = hexToRgba(color, 0.16);
           return (
             <View style={styles.row}>
