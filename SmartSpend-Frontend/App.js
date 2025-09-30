@@ -13,6 +13,7 @@ import ChatbotScreen from './screens/ChatbotScreen';
 import LanguageSettingsScreen from './screens/LanguageSettingsScreen';
 import { supabase } from './services/supabase';
 
+
 const Stack = createStackNavigator();
 
 export default function App() {
@@ -33,7 +34,7 @@ export default function App() {
         console.log('Initializing Supabase connection...');
         
         // Test API connection first
-        const apiUrl = Constants.expoConfig?.extra?.apiUrl || 'http://192.168.1.3:5050';
+        const apiUrl = Constants.expoConfig.extra.apiUrl;
         console.log('Testing API connection to:', apiUrl);
         
         try {

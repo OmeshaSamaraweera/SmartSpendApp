@@ -1,8 +1,9 @@
 // SmartSpend-Frontend/services/chatApi.js
 import { supabase } from "./supabase";
+import Constants from "expo-constants";
 
-// 🔗 Always use the hosted Railway backend in production
-const BACKEND_URL = "http://192.168.1.3:5050";
+// ✅ Centralized backend URL from app.json
+const apiUrl = Constants.expoConfig.extra.apiUrl;
 
 export async function askInvestAssistant({ messages, targetLang, grounding }) {
   try {
@@ -22,7 +23,7 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
 
     let res;
     try {
-      res = await fetch(`${BACKEND_URL}/chatbot`, {
+      res = await fetch(`${apiUrl}/chatbot`, {   // 👈 use apiUrl here
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -60,7 +61,7 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
 
     if (res.status === 0) {
       throw new Error(
-        "Network error: Backend unreachable (status 0). Check BACKEND_URL."
+        "Network error: Backend unreachable (status 0). Check apiUrl."
       );
     }
 
@@ -69,7 +70,7 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
       if (res.status === 429) {
         throw new Error(
           "⚠️ Sorry, the daily request limit has been reached for the Finance Assistant. " +
-            "Please try again tomorrow. , and I’ll be ready to help you again with your financial planning."
+            "Please try again tomorrow, and I’ll be ready to help you again with your financial planning."
         );
       }
 

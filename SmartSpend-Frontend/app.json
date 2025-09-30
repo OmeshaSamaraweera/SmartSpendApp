@@ -36,7 +36,7 @@
       "output": "static"
     },
     "extra": {
-      "apiUrl": "http://10.0.2.2:5050",
+      "apiUrl": "http://172.20.10.4:5050",   
       "eas": {
         "projectId": "45cbf1a9-fad6-4779-963b-1592e4a1e630"
       }

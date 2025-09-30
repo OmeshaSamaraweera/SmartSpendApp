@@ -10,9 +10,9 @@ const appExtra =
   (Constants?.manifest && Constants.manifest.extra) ||
   {};
 
-// Fixed Base URL for your Python/AI backend (with https://)
 
-const BASE_URL = 'http://192.168.1.3:5050';                            //http://192.168.75.202:5050
+
+const apiUrl = Constants.expoConfig.extra.apiUrl; //http://192.168.75.202:5050
 
 /* ------------------------------------------------------------------ */
 /*                              Session                                */
@@ -361,7 +361,7 @@ const testEndpoints = async (requestData) => {
 
   for (const endpoint of endpoints) {
     try {
-      const fullUrl = `${BASE_URL}${endpoint}`;
+      const fullUrl = `${apiUrl}${endpoint}`;   // ✅ use apiUrl
       console.log(`Testing: ${fullUrl}`);
       
       const response = await axios.post(fullUrl, requestData, {
@@ -378,23 +378,14 @@ const testEndpoints = async (requestData) => {
       
     } catch (error) {
       const status = error.response?.status;
-      const statusText = error.response?.statusText;
-      
       console.log(`❌ Failed: ${endpoint} - Status: ${status || 'Network Error'}`);
-      
-      if (status === 405) {
-        console.log('  → Method not allowed (might need GET instead of POST)');
-      } else if (status === 422) {
-        console.log('  → Validation error - check request data format');
-        console.log('  → Response:', error.response?.data);
-      } else if (status === 500) {
-        console.log('  → Server error - check backend logs');
-      }
     }
   }
   
   throw new Error('All endpoints failed - check backend deployment and routes');
 };
+
+
 
 /* ------------------------------------------------------------------ */
 /*                           Main function                             */

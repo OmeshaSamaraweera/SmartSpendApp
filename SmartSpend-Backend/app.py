@@ -19,6 +19,9 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+print("📋 Listing available Gemini models...")
+for m in genai.list_models():
+    print("-", m.name)
 
 app = Flask(__name__)
 
@@ -279,6 +282,7 @@ def recommend_budget():
 
 
 # ---------- Chatbot endpoint ----------
+# ---------- Chatbot endpoint ----------
 @app.route("/chatbot", methods=["POST"])
 def chatbot():
     data = request.get_json(force=True)
@@ -337,6 +341,7 @@ def chatbot():
         print(f"❌ Failed to fetch user data: {e}")
         income_records = expense_records = accounts = transactions = sms_records = categories = []
 
+    # Income & expenses
     category_lookup = {cat["id"]: cat.get("name", "Other") for cat in categories}
 
     income_breakdown = {"main_income": main_income, "extras": [], "total": main_income}
@@ -360,7 +365,7 @@ def chatbot():
     savings = total_income - total_expenses
     savings_rate = (savings / total_income * 100) if total_income > 0 else 0
 
-    # Get benchmark data
+    # Benchmark
     try:
         bm_rows = supabase.table("benchmarks").select("*").execute().data or []
         best_row, best_diff = None, float("inf")
@@ -369,21 +374,14 @@ def chatbot():
             if diff < best_diff:
                 best_row, best_diff = row, diff
         benchmark = best_row or {}
-        typical_rate = _num(benchmark.get("savings_rate", 7))
     except Exception as e:
         print(f"❌ Failed to fetch benchmarks: {e}")
         benchmark = {}
-        typical_rate = 7
 
-    # ML prediction
-    # ML prediction (safe wrapper)
-        # -------------------------
-    # ML prediction (safe wrapper)
-    # -------------------------
-    try:
-        pred_savings = None
-        if MODEL is not None:
-            # Ensure input is always a 2D array or DataFrame
+    # ML prediction (safe unwrap)
+    pred_savings = None
+    if MODEL is not None:
+        try:
             if len(FEATURES) >= 2:
                 input_data = pd.DataFrame({
                     FEATURES[0]: [age],
@@ -393,16 +391,19 @@ def chatbot():
                 input_data = np.array([[age, total_income]])
 
             raw_pred = MODEL.predict(input_data)
-            if isinstance(raw_pred, (list, np.ndarray)) and len(raw_pred) > 0:
-                pred_savings = float(raw_pred[0])
+            if isinstance(raw_pred, (list, np.ndarray, pd.Series)):
+                pred_savings = float(np.ravel(raw_pred)[0])
             else:
-                print("⚠️ ML returned empty or invalid prediction.")
-    except Exception as e:
-        print(f"❌ ML prediction failed in chatbot: {e}")
-        pred_savings = None
+                pred_savings = float(raw_pred)
 
+            print(f"🤖 ML predicted savings (chatbot): Rs. {pred_savings}")
+        except Exception as e:
+            print(f"❌ ML prediction failed in chatbot: {e}")
+            pred_savings = None
 
-
+    # -------------------------
+    # Fallback: no user data
+    # -------------------------
     user_has_data = (
         total_income > 0 or total_expenses > 0 or accounts or transactions or sms_records or categories
     )
@@ -417,17 +418,27 @@ def chatbot():
         Keep the response friendly, practical, and encouraging them to track their finances.
         """
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("models/gemini-2.5-flash")
             resp = model.generate_content([fallback_prompt])
-            return jsonify({"message": clean_response(resp.text), "grounding_used": {"benchmark": benchmark}})
-        except Exception as e:
-            if "429" in str(e) or "quota" in str(e).lower():
-                return jsonify({
-                    "message": "⚠️ Sorry, the daily request limit has been reached for the Finance Assistant. "
-                               "Please try again tomorrow or upgrade the Gemini API plan."
-                }), 429
-            return jsonify({"message": "⚠️ Something went wrong while processing your request."}), 500
 
+
+            response_text = getattr(resp, "text", None)
+            if not response_text:
+                raise ValueError("Gemini returned no text")
+
+            return jsonify({
+                "message": clean_response(response_text),
+                "grounding_used": {"benchmark": benchmark}
+            })
+        except Exception as e:
+            print(f"❌ Gemini call failed (fallback): {e}")
+            return jsonify({
+                "message": "⚠️ Something went wrong while generating fallback advice."
+            }), 500
+
+    # -------------------------
+    # Main Gemini prompt
+    # -------------------------
     grounding = {
         "age": age,
         "income": income_breakdown,
@@ -466,16 +477,24 @@ def chatbot():
     """
 
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("models/gemini-2.5-flash")
         resp = model.generate_content([prompt])
-        return jsonify({"message": clean_response(resp.text), "grounding_used": grounding})
+
+
+        response_text = getattr(resp, "text", None)
+        if not response_text:
+            raise ValueError("Gemini returned no text")
+
+        return jsonify({
+            "message": clean_response(response_text),
+            "grounding_used": grounding
+        })
     except Exception as e:
-        if "429" in str(e) or "quota" in str(e).lower():
-            return jsonify({
-                "message": "⚠️ Sorry, the daily request limit has been reached for the Finance Assistant. "
-                           "Please try again tomorrow or upgrade the Gemini API plan."
-            }), 429
-        return jsonify({"message": "⚠️ Something went wrong while processing your request."}), 500
+        print(f"❌ Gemini call failed (main): {e}")
+        return jsonify({
+            "message": "⚠️ Something went wrong while processing your request."
+        }), 500
+
 
 
 if __name__ == "__main__":
