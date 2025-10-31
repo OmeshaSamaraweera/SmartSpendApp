@@ -2,12 +2,12 @@
 import { supabase } from "./supabase";
 import Constants from "expo-constants";
 
-// ✅ Centralized backend URL from app.json
+//  Centralized backend URL from app.json
 const apiUrl = Constants.expoConfig.extra.apiUrl;
 
 export async function askInvestAssistant({ messages, targetLang, grounding }) {
   try {
-    // ✅ Always get logged in user id from Supabase
+    // Always get logged in user id from Supabase
     const {
       data: { user },
       error: userErr,
@@ -16,14 +16,14 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
 
     const latestMessage = messages[messages.length - 1]?.content || "";
 
-    // ✅ Detect if the user is explicitly asking about budgets
+    //  Detect if the user is explicitly asking about budgets
     const lowerMsg = latestMessage.toLowerCase();
     const isBudgetQuery =
       lowerMsg.includes("budget") || lowerMsg.includes("limit");
 
     let res;
     try {
-      res = await fetch(`${apiUrl}/chatbot`, {   // 👈 use apiUrl here
+      res = await fetch(`${apiUrl}/chatbot`, {   //   apiUrl 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -31,7 +31,7 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
           message: latestMessage,
           grounding,
           targetLang,
-          // 🔒 Stronger control instructions for Gemini
+          // Stronger control instructions for Gemini
           control_instructions: [
             "CRITICAL RULES:",
             "• NEVER generate lines like 'Your X budget is ...' or 'Your expenses are ...'.",
@@ -50,11 +50,11 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
         }),
       });
     } catch (netErr) {
-      // 🚫 No network / backend not reachable
+      //  No network / backend not reachable
       throw new Error("Network request failed. Is your backend running?");
     }
 
-    // 🚫 Handle unreachable server responses
+    // Handle unreachable server responses
     if (!res || typeof res.status !== "number") {
       throw new Error("Invalid response from backend (no status).");
     }
@@ -66,7 +66,7 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
     }
 
     if (!res.ok) {
-      // ✅ Special handling for quota exceeded (429)
+      //  Special handling for quota exceeded (429)
       if (res.status === 429) {
         throw new Error(
           "⚠️ Sorry, the daily request limit has been reached for the Finance Assistant. " +
@@ -74,7 +74,7 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
         );
       }
 
-      // ✅ For all other errors → show only clean message, not raw JSON
+      //  For all other errors → show only clean message, not raw JSON
       const text = await res.text().catch(() => "");
       throw new Error(
         `⚠️ The Finance Assistant service returned an error (status ${res.status}). ` +
@@ -82,7 +82,7 @@ export async function askInvestAssistant({ messages, targetLang, grounding }) {
       );
     }
 
-    // ✅ Parse JSON safely
+    //  Parse JSON safely
     return await res.json();
   } catch (err) {
     console.error("askInvestAssistant error:", err.message || err);
